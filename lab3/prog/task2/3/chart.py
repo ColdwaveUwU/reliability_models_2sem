@@ -1,42 +1,43 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import gamma
 
-# Данные из таблицы T с добавленным последним интервалом
-time_intervals = np.array([
-    2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,
-    42,44,46,48,50,52,54,56,58,60
-])
+Tmodel = 100000  # увеличить для стабильности
 
-cum_percent = np.array([
-    0.12,1.34,3.55,8.19,15.77,22.25,29.34,38.39,46.70,54.16,
-    61.25,66.99,72.13,76.77,79.46,84.11,87.53,90.22,92.54,93.77,
-    95.35,97.43,98.04,98.66,98.66,99.27,99.63,99.76,99.76,100.00
-]) / 100  # в долях
+shape_single = 2
+scale_single = 5
+shift = 0  # если есть сдвиг
 
-# Эмпирическая функция безотказной работы
-R_empirical = 1 - cum_percent
+# Вероятности прерываний — поставить реальные из GPSS (пример)
+p_stop_after_1 = 0.3
+p_stop_after_2 = 0.4
+# p_stop_after_3 = 0.3 (оставшиеся случаи)
 
-# Параметры гамма-распределения, рассчитанные из MEAN и STD.DEV.
-mean_sim = 20.803
-std_sim = 10.642
+fail_times = []
 
-m = (mean_sim / std_sim) ** 2       # shape
-theta = std_sim / np.sqrt(m)        # scale
+for _ in range(Tmodel):
+    t1 = shift + np.random.gamma(shape_single, scale_single)
+    if np.random.rand() < p_stop_after_1:
+        fail_times.append(t1)
+        continue
 
-print(f"Параметры гамма-распределения: shape (m) = {m:.2f}, scale (theta) = {theta:.2f}")
+    t2 = shift + np.random.gamma(shape_single, scale_single)
+    if np.random.rand() < p_stop_after_2:
+        fail_times.append(t1 + t2)
+        continue
 
-# Теоретическая функция безотказной работы для гамма-распределения
-R_theoretical = 1 - gamma.cdf(time_intervals, a=m, scale=theta)
+    t3 = shift + np.random.gamma(shape_single, scale_single)
+    fail_times.append(t1 + t2 + t3)
 
-# График сравнения
-plt.figure(figsize=(10,6))
-plt.step(time_intervals, R_empirical, where='post', label='Эмпирическая ВБР из GPSS', linewidth=2)
-plt.plot(time_intervals, R_theoretical, 'r--', label=f'Теоретическая ВБР Gamma(m={m:.2f}, scale={theta:.2f})', linewidth=2)
+fail_times = np.array(fail_times)
 
-plt.xlabel('Время, t')
-plt.ylabel('Вероятность безотказной работы R(t)')
-plt.title('Сравнение эмпирической и теоретической функции безотказной работы')
-plt.legend()
-plt.grid(True)
+bins = np.arange(0, 60, 2)
+
+plt.hist(fail_times, bins=bins, density=True, alpha=0.7, edgecolor='black')
+plt.xlabel("Время отказа")
+plt.ylabel("Плотность вероятности")
+plt.title("Распределение времени отказа с прерыванием")
+plt.grid(True, linestyle='--', alpha=0.7)
 plt.show()
+
+print("Среднее:", np.mean(fail_times))
+print("Стандартное отклонение:", np.std(fail_times))
